@@ -9,6 +9,7 @@
   "author": "Joseph Robinson",
   "license": "ISC",
   "dependencies": {
+    "dotenv": "^16.0.1",
     "express": "^4.18.1",
     "mongodb": "^4.8.1",
     "swagger-ui-express": "^4.5.0"
