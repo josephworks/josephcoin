@@ -17,7 +17,7 @@
         "removeComments": true,
         "noImplicitAny": false,
         "typeRoots": ["node_modules/@types"],
-        "sourceMap": false,
+        "sourceMap": true,
         "baseUrl": "./"
     },
     "files": ["src/index.ts"],
