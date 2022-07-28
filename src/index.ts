@@ -171,16 +171,16 @@ router.post('/subtractmoney', (req, res) => {
 });
 
 router.post('/trademoney', (req, res) => {
-    // trade money between two users using discord id or josephcoin id
+    // TODO: trade money between two users using discord id or josephcoin id
 });
 
 let loggerMiddleware = (
     req: express.Request,
     res: express.Response,
     next: express.NextFunction
-) => {
+): void => {
     next();
-    console.log(`(${new Date().toLocaleTimeString()})  ${req.method} ${req.path} - ${res._final}`);
+    console.log(`(${new Date().toLocaleTimeString()})  ${req.method} ${req.path} - ${res.json()}`);
 };
 
 app.use(loggerMiddleware);
