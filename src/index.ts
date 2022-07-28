@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */ // for testing
 import path from 'node:path';
 import express from 'express';
 import { MongoClient } from 'mongodb';
@@ -26,12 +27,10 @@ const swaggerDocument = require('../swagger.json');
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // new mongodb connection (mongodb)
-const url = 'mongodb://192.168.1.11:27017';
-export const client = new MongoClient(url);
-const dbName = 'JosephCoin';
-const db = client.db(dbName);
+export const client = new MongoClient(process.env.URL.toString());
+export const db = client.db(process.env.DBNAME.toString());
 
-const max_josephcoin_amount = 20000000;
+const max_josephcoin_amount = 20000000; //Unused for now
 
 const router = express.Router();
 
@@ -50,28 +49,18 @@ client.connect(async () => {
 router.get('/worth', (req, res) => {
     // get the current worth of the bank account
     client.connect(async () => {
-        const db = client.db(dbName);
         const collection = db.collection('Bank');
         const result = await collection.findOne();
         const response = {
-            worth: result?.checking + result?.savings / Number(req.query.amount),
+            worth: Number(result?.checking) + Number(result?.savings) / Number(req.query.amount),
         };
         res.send(response);
     });
 });
 
-router.get('/userinfo', (req, res) => {
-    // use discord id or josephcoin id(?) to get a user's info such as balance, transaction history, etc.
-    client.connect(async () => {
-        const db = client.db(dbName);
-        const usersCollection = db.collection('Users');
-    });
-});
-
-router.post('/createuser', (req, res) => {
+router.post('/create-user', (req, res) => {
     // use discord id to create a new user with the default everything and a new josephcoin id maybe (probably incremental)
     client.connect(async () => {
-        const db = client.db(dbName);
         const usersCollection = db.collection('Users');
         const nextId = await usersCollection.estimatedDocumentCount();
         const insertResult = await usersCollection.insertOne({
@@ -86,10 +75,9 @@ router.post('/createuser', (req, res) => {
     });
 });
 
-router.post('/addmoney', (req, res) => {
-    // give a user money using discord id or josephcoin id
+router.post('/add-coin', (req, res) => {
+    // give a user coin using discord id or josephcoin id
     client.connect(async () => {
-        const db = client.db(dbName);
         const usersCollection = db.collection('Users');
         const user = req.body.discordId
             ? await usersCollection.findOne({ discordId: req.body.discordId })
@@ -99,7 +87,7 @@ router.post('/addmoney', (req, res) => {
             res.send({ error: 'User not found' });
             return;
         }
-        const newBalance = user.balance + req.body.amount;
+        const newBalance = Number(user.balance) + Number(req.body.amount);
         const _updateBalanceResult = await usersCollection.updateOne(
             { _id: user._id },
             { $set: { balance: newBalance } }
@@ -128,10 +116,9 @@ router.post('/addmoney', (req, res) => {
     });
 });
 
-router.post('/subtractmoney', (req, res) => {
-    // take a user's money using discord id or josephcoin id
+router.post('/subtract-coin', (req, res) => {
+    // take a user's coin using discord id or josephcoin id
     client.connect(async () => {
-        const db = client.db(dbName);
         const usersCollection = db.collection('Users');
         const user = req.body.discordId
             ? await usersCollection.findOne({ discordId: req.body.discordId })
@@ -170,17 +157,17 @@ router.post('/subtractmoney', (req, res) => {
     });
 });
 
-router.post('/trademoney', (req, res) => {
-    // trade money between two users using discord id or josephcoin id
+router.post('/trade-coin', (req, res) => {
+    // trade coin between two users using discord id or josephcoin id
 });
 
 let loggerMiddleware = (
     req: express.Request,
     res: express.Response,
     next: express.NextFunction
-) => {
+): void => {
     next();
-    console.log(`(${new Date().toLocaleTimeString()})  ${req.method} ${req.path} - ${res._final}`);
+    console.log(`(${new Date().toLocaleTimeString()})  ${req.method} ${req.path} - ${res.json()}`);
 };
 
 app.use(loggerMiddleware);
