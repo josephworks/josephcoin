@@ -1,11 +1,20 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */ // for testing
 import path from 'node:path';
+import { env } from 'node:process';
+import colors from 'colors';
+import * as dotenv from 'dotenv';
 import express from 'express';
 import { MongoClient } from 'mongodb';
 import swaggerUi from 'swagger-ui-express';
+import UserRouter from './routes/users';
+
+colors.enable();
 
 const app = express();
+
 app.use(express.json());
+
+dotenv.config();
 
 const swaggerAutogen = require('swagger-autogen')();
 
@@ -25,10 +34,10 @@ swaggerAutogen('../swagger.json', endpointFiles, config);
 const swaggerDocument = require('../swagger.json');
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-
 // new mongodb connection (mongodb)
-export const client = new MongoClient(process.env.URL.toString());
-export const db = client.db(process.env.DBNAME.toString());
+
+export const client = new MongoClient(<string>env.DB_URL);
+export const db = client.db(<string>env.DB_NAME);
 
 const max_josephcoin_amount = 20000000; //Unused for now
 
@@ -37,7 +46,7 @@ const router = express.Router();
 client.connect(async () => {
     const bankCollection = db.collection('Bank');
     // await bankCollection.insertOne({
-    //     checking: 258.57 / 2, // TODO: if less than 100, set to 0
+    //     checking: 328.60 / 2, // TODO: if less than 100, set to 0
     //     savings: 2500.03 / 2,
     //     date: new Date(),
     // });
@@ -47,7 +56,7 @@ client.connect(async () => {
 });
 
 router.get('/worth', (req, res) => {
-    // get the current worth of the bank account
+    // get the worth of an amount of josephcoin
     client.connect(async () => {
         const collection = db.collection('Bank');
         const result = await collection.findOne();
@@ -58,31 +67,6 @@ router.get('/worth', (req, res) => {
     });
 });
 
-router.get('/userinfo', (req, res) => {
-    // use discord id or josephcoin id(?) to get a user's info such as balance, transaction history, etc.
-    client.connect(async () => {
-        const db = client.db(dbName);
-        const usersCollection = db.collection('Users');
-    });
-});
-
-router.post('/create-user', (req, res) => {
-    // use discord id to create a new user with the default everything and a new josephcoin id maybe (probably incremental)
-    client.connect(async () => {
-        const usersCollection = db.collection('Users');
-        const nextId = await usersCollection.estimatedDocumentCount();
-        const insertResult = await usersCollection.insertOne({
-            discordId: req.body.discordId,
-            josephcoinId: nextId,
-            balance: 0,
-            transactions: [],
-        });
-        const result = await usersCollection.findOne({ _id: insertResult.insertedId });
-
-        res.send(result);
-    });
-});
-
 router.post('/add-coin', (req, res) => {
     // give a user coin using discord id or josephcoin id
     client.connect(async () => {
@@ -90,7 +74,7 @@ router.post('/add-coin', (req, res) => {
         const user = req.body.discordId
             ? await usersCollection.findOne({ discordId: req.body.discordId })
             : await usersCollection.findOne({ josephcoinId: req.body.josephcoinId });
-
+        console.log(req.body.josephcoinId);
         if (!user) {
             res.send({ error: 'User not found' });
             return;
@@ -169,20 +153,54 @@ router.post('/trade-coin', (req, res) => {
     // trade coin between two users using discord id or josephcoin id
 });
 
-let loggerMiddleware = (
-    req: express.Request,
-    res: express.Response,
-    next: express.NextFunction
-): void => {
+function loggerMiddleware(req: any, res: any, next: any): void {
+    let oldWrite = res.write;
+    let oldEnd = res.end;
+    let chunks = [];
+
+    res.write = function (chunk: never, ...args: any) {
+        chunks.push(chunk);
+        return oldWrite.apply(res, args);
+    };
+
+    res.end = function (chunk: never, ...args: any) {
+        if (chunk) chunks.push(chunk);
+        if (typeof chunk != 'string') {
+            const body = Buffer.concat(chunks).toString('utf8');
+
+            console.log(
+                `(${new Date().toLocaleTimeString()}) ${req.method} ${req.path} | ${
+                    req.query ? 'Query: ' + JSON.stringify(req.query) : ''
+                } ${req.body ? 'Body: ' + JSON.stringify(req.body) : ''} - ${body}`
+            );
+            oldEnd.apply(res, args);
+        } else {
+            console.log(
+                `(${new Date().toLocaleTimeString()}) ${req.method} ${req.path} \n\n` +
+                    '<=>=<=>=<=>=<=>=<=>=<=>=<=>=<=>\n'.rainbow +
+                    '      ' +
+                    'ERROR ERROR ERROR\n'.yellow.underline +
+                    '<=>=<=>=<=>=<=>=<=>=<=>=<=>=<=>\n\n'.rainbow +
+                    `${chunk}\n`.red +
+                    '<=>=<=>=<=>=<=>=<=>=<=>=<=>=<=>\n'.rainbow +
+                    '      ' +
+                    'ERROR ERROR ERROR\n'.yellow.underline +
+                    '<=>=<=>=<=>=<=>=<=>=<=>=<=>=<=>\n'.rainbow
+            );
+        }
+    };
+
     next();
-    console.log(`(${new Date().toLocaleTimeString()})  ${req.method} ${req.path} - ${res.json()}`);
-};
+}
 
 app.use(loggerMiddleware);
 
 app.use('/api', router);
 
-const port = 3000;
-app.listen(port, () => {
-    console.log(`[!] Server started on port: ${port}!`);
+app.use('/api/user', UserRouter);
+
+if (!process.env.PORT) throw new Error('Port is not defined');
+
+app.listen(process.env.PORT, () => {
+    console.log(`[!] Server started on port: ${process.env.PORT}!`);
 });
