@@ -46,8 +46,8 @@ const router = express.Router();
 client.connect(async () => {
     const bankCollection = db.collection('Bank');
     // await bankCollection.insertOne({
-    //     checking: 328.60 / 2, // TODO: if less than 100, set to 0
-    //     savings: 2500.03 / 2,
+    //     checking: 976.60 / 2, // TODO: if less than 100, set to 0
+    //     savings: 1500.03 / 2,
     //     date: new Date(),
     // });
     const josephcoinCollection = db.collection('JosephCoin');
