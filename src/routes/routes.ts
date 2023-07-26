@@ -2,6 +2,7 @@ import express from 'express'
 
 const router = express.Router()
 
+// call midleware
 router.use(express.json())
 
 // User routes

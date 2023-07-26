@@ -1,5 +1,5 @@
 import express from 'express'
-import router from './routes'
+import router from './routes/routes'
 import swaggerJSDoc from 'swagger-jsdoc'
 import { serve, setup } from 'swagger-ui-express'
 
