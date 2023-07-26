@@ -1,20 +1,42 @@
-import bodyParser from 'body-parser'
 import express from 'express'
-import routes from './routes'
-import swaggerUi from 'swagger-ui-express'
-const swaggerDocument = require('./swagger.json')
+import router from './routes'
+import swaggerJSDoc from 'swagger-jsdoc'
+import { serve, setup } from 'swagger-ui-express'
 
 // new express app instance
 const app = express()
 
 // call midleware
-app.use(bodyParser.json())
+app.use(express.json())
 
 // call routes
-app.use('/api', routes)
+app.use('/api', router)
+
+const options = {
+    definition: {
+        openapi: '3.0.0',
+        info: {
+            title: 'JosephCoin API',
+            version: '1.0.0',
+            description: 'The (internal) API for JosephCoin'
+        },
+        servers: [
+            {
+                url: 'http://localhost:3000/api'
+            },
+            {
+                url: 'https://josephworks.net/josephcoin/api'
+            }
+        ]
+    },
+    apis: ['./routes/*.ts']
+}
+
+const swaggerSpec = swaggerJSDoc(options)
 
 // add swashbuckle for swagger
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument))
+app.use('/api-docs', serve)
+app.get('/api-docs', setup(swaggerSpec))
 
 // export express app
 export default app
