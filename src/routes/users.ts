@@ -1,36 +1,88 @@
-import express from 'express'
-import { client, db } from '../index'
+import express, { Request, Response, NextFunction } from 'express'
+import User from '../schema/UserSchema'
 
-const UserRouter = express.Router()
+interface UserRequest extends Request {
+  user?: any
+}
 
-UserRouter.get('/user-info', (req, res) => {
-    // use discord id or josephcoin id(?) to get a user's info such as balance, transaction history, etc.
-    client.connect(async () => {
-        const usersCollection = db.collection('Users')
-        // const user = req.query.discordId
-        //     ? await usersCollection.findOne({ discordId: req.query.discordId })
-        //     : await usersCollection.findOne({ josephcoinId: req.query.josephcoinId });
-        const user = await usersCollection.findOne({ josephcoinId: Number(req.query.josephcoinId) })
-        console.log(req.query.josephcoinId)
-        res.send({ user })
-    })
+const router = express.Router()
+
+// Get all users
+router.get('/users', async (req, res) => {
+    try {
+        const users = await User.find()
+        res.json(users)
+    } catch (err: any) {
+        res.status(500).json({ message: err.message })
+    }
 })
 
-UserRouter.post('/create-user', (req, res) => {
-    // use discord id to create a new user with the default everything and a new josephcoin id maybe (probably incremental)
-    client.connect(async () => {
-        const usersCollection = db.collection('Users')
-        const nextId = await usersCollection.estimatedDocumentCount()
-        const insertResult = await usersCollection.insertOne({
-            discordId: req.body.discordId,
-            josephcoinId: nextId,
-            balance: 0,
-            transactions: []
-        })
-        const result = await usersCollection.findOne({ _id: insertResult.insertedId })
-
-        res.send(result)
-    })
+// Get a single user
+router.get('/users/:id', getUser, (req: UserRequest, res) => {
+    res.json(req.user)
 })
 
-export default UserRouter
+// Create a user
+router.post('/users', async (req, res) => {
+    const user = new User({
+        name: req.body.name,
+        email: req.body.email,
+        password: req.body.password
+    })
+
+    try {
+        const newUser = await user.save()
+        res.status(201).json(newUser)
+    } catch (err : any) {
+        res.status(400).json({ message: err.message })
+    }
+})
+
+// Update a user
+router.patch('/users/:id', getUser, async (req: UserRequest, res) => {
+    if (req.body.name != null) {
+        req.user.name = req.body.name
+    }
+
+    if (req.body.email != null) {
+        req.user.email = req.body.email
+    }
+
+    if (req.body.password != null) {
+        req.user.password = req.body.password
+    }
+
+    try {
+        const updatedUser = await req.user.save()
+        res.json(updatedUser)
+    } catch (err : any) {
+        res.status(400).json({ message: err.message })
+    }
+})
+
+// Delete a user
+router.delete('/users/:id', getUser, async (req: UserRequest, res) => {
+    try {
+        await req.user.remove()
+        res.json({ message: 'Deleted User' })
+    } catch (err : any) {
+        res.status(500).json({ message: err.message })
+    }
+})
+
+async function getUser (req: UserRequest, res: Response, next: NextFunction) {
+    let user
+
+    try {
+        user = await User.findById(req.params.id)
+
+        if (user == null) {
+            return res.status(404).json({ message: 'Cannot find user' })
+        }
+    } catch (err : any) {
+        return res.status(500).json({ message: err.message })
+    }
+
+    req.user = user
+    next()
+}
